@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", "Avenir Next", "Segoe UI", sans-serif;
+  --font-serif: "Newsreader", "Iowan Old Style", "Palatino", serif;
+  --color-bg: #12100e;
+  --color-panel: #1b1815;
+  --color-panel-2: #221e1a;
+  --color-line: #2f2a24;
+  --color-ink: #f4eee6;
+  --color-muted: #9c9186;
+  --color-accent: #e8b86d;
+  --color-accent-dim: #8a6d3d;
+  --color-ok: #8fbc8a;
+  --color-warn: #e0b15a;
+  --color-bad: #d07a6b;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
+  cursor: pointer;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 0.35;
+}
+
+.js-plotly-plot .plotly .modebar {
+  top: 8px !important;
+  right: 10px !important;
+  background: transparent !important;
+}
+
+.js-plotly-plot .plotly .modebar-group {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+.js-plotly-plot .plotly .modebar-btn {
+  background: transparent !important;
+  font-size: 16px !important;
+}
+
+.js-plotly-plot .plotly .modebar-btn svg {
+  width: 1em !important;
+  height: 1em !important;
+}
+
+.js-plotly-plot .plotly .modebar-btn path {
+  fill: #9c9186 !important;
+}
+
+.js-plotly-plot .plotly .modebar-btn:hover path {
+  fill: #f4eee6 !important;
+}
+
+.weight-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(232, 184, 109, 0.35);
+}
+
+.field {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-line);
+  background: var(--color-bg);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-ink);
+}
+
+.field:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(232, 184, 109, 0.28);
+}
