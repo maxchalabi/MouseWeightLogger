@@ -40,3 +40,7 @@ The database and imported photos live in the OS app-data directory, not in this 
 ## Stack
 
 Tauri 2, React, TypeScript, Tailwind, SQLite (`tauri-plugin-sql`), Plotly.
+
+## License
+
+[MIT](LICENSE)
