@@ -12,6 +12,20 @@ Local desktop app for daily mouse weigh-ins, colony metadata, and interactive we
 - **Mice** — roster grouped by experiment / cohort. Add, edit, inactivate, or delete. Each mouse gets a unique plot color; photos and extra fields (strain, genotype, cage, ear mark, notes) are optional. One CSV export includes mice and daily weights.
 - **Curves** — interactive Plotly viewer. Pick mice or a whole cohort, drag to pan, scroll to zoom, home / double-click to reset. Save a PNG with the legend.
 
+## Screenshots
+
+**Today**
+
+<img src="docs/screenshots/today.png" alt="Today weigh-in screen" width="960" />
+
+**Mice**
+
+<img src="docs/screenshots/mice.png" alt="Mice roster grouped by cohort" width="960" />
+
+**Curves**
+
+<img src="docs/screenshots/curves.png" alt="Weight curves viewer" width="960" />
+
 ## Run
 
 You need [Node.js](https://nodejs.org/) and [Rust](https://rustup.rs/).
