@@ -1,5 +1,6 @@
 import Plotly from "plotly.js-dist-min";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useActiveColony } from "../lib/colony-context";
 import { cohortName, groupMiceByCohort, listCohorts } from "../lib/cohorts";
 import { mouseColor, suggestColors, usedColors } from "../lib/colors";
 import { addDays, plotlyDateToISO, todayISO } from "../lib/dates";
@@ -76,12 +77,16 @@ export function Curves() {
   const [error, setError] = useState<string | null>(null);
   const [cohortMenu, setCohortMenu] = useState(false);
   const plotRef = useRef<HTMLDivElement | null>(null);
+  const loadedColony = useRef<string | null>(null);
+  const { active, revision, canEdit } = useActiveColony();
   const defaultsRef = useRef<AxisRange | null>(null);
   const selectedWeightsRef = useRef<Weight[]>([]);
   const syncingFromPlot = useRef(false);
   const resetAxesRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
+    const colonyChanged = loadedColony.current !== active.id;
+    loadedColony.current = active.id;
     void (async () => {
       try {
         const [allMice, allWeights, pct] = await Promise.all([
@@ -92,6 +97,12 @@ export function Curves() {
         setMice(allMice);
         setWeights(allWeights);
         setBaselinePct(pct);
+        if (!colonyChanged) {
+          setSelected(
+            (prev) => new Set([...prev].filter((id) => allMice.some((mouse) => mouse.id === id))),
+          );
+          return;
+        }
         const activeIds = new Set(allMice.filter((m) => m.status === "active").map((m) => m.id));
         setSelected(activeIds);
         setRange(computeDefaults(allWeights.filter((w) => activeIds.has(w.mouse_id))));
@@ -99,7 +110,7 @@ export function Curves() {
         setError(err instanceof Error ? err.message : String(err));
       }
     })();
-  }, []);
+  }, [active.id, revision]);
 
   const selectedMice = useMemo(
     () => mice.filter((m) => selected.has(m.id)),
@@ -335,6 +346,7 @@ export function Curves() {
   }
 
   async function changeColor(id: string, color: string) {
+    if (!canEdit) return;
     try {
       await setMouseColor(id, color);
       setMice(await listMice());
@@ -344,6 +356,7 @@ export function Curves() {
   }
 
   async function commitBaseline(raw: string) {
+    if (!canEdit) return;
     const n = Number(raw);
     if (!Number.isFinite(n) || n <= 0 || n > 100) return;
     setBaselinePct(n);
@@ -431,6 +444,7 @@ export function Curves() {
               max={100}
               step={1}
               value={baselinePct}
+              readOnly={!canEdit}
               onChange={(e) => setBaselinePct(Number(e.target.value) || 0)}
               onBlur={(e) => void commitBaseline(e.target.value)}
               className="w-12 bg-transparent text-center text-ink outline-none"
@@ -454,12 +468,19 @@ export function Curves() {
                   const color = mouseColor(mouse.id, mouse.color);
                   return (
                     <div key={mouse.id} className="flex items-center gap-2">
-                      <ColorPicker
-                        compact
-                        value={color}
-                        suggestions={suggestColors(usedColors(mice, mouse.id), color)}
-                        onChange={(next) => void changeColor(mouse.id, next)}
-                      />
+                      {canEdit ? (
+                        <ColorPicker
+                          compact
+                          value={color}
+                          suggestions={suggestColors(usedColors(mice, mouse.id), color)}
+                          onChange={(next) => void changeColor(mouse.id, next)}
+                        />
+                      ) : (
+                        <span
+                          className="h-4 w-4 shrink-0 rounded-full border border-line"
+                          style={{ background: color }}
+                        />
+                      )}
                       <button
                         type="button"
                         onClick={() => toggle(mouse.id)}

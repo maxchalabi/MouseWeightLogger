@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { percentTone } from "../lib/colors";
 import { sexGlyph, sexLabel } from "../lib/sex";
 import { ageLabel, formatPrettyDate, formatShortDate, todayISO } from "../lib/dates";
+import { useActiveColony } from "../lib/colony-context";
 import { deleteWeight, getBaselinePercent, listWeighRows, seedDemoColony, upsertWeight } from "../lib/db";
 import type { WeighRow } from "../lib/types";
 import { MouseAvatar } from "./MouseAvatar";
@@ -24,18 +25,20 @@ export function Today({ onOpenColony }: Props) {
   const [loading, setLoading] = useState(true);
   const [baselinePct, setBaselinePct] = useState(80);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const { active, revision, canEdit } = useActiveColony();
 
   async function refresh(nextDate = date) {
     setLoading(true);
     try {
       const next = await listWeighRows(nextDate);
       setRows(next);
-      setDrafts(
+      setDrafts((prev) =>
         Object.fromEntries(
-          next.map((row) => [
-            row.id,
-            row.today_weight == null ? "" : String(row.today_weight),
-          ]),
+          next.map((row) => {
+            const field = inputRefs.current[row.id];
+            if (field && document.activeElement === field) return [row.id, prev[row.id] ?? ""];
+            return [row.id, row.today_weight == null ? "" : String(row.today_weight)];
+          }),
         ),
       );
       setError(null);
@@ -48,11 +51,8 @@ export function Today({ onOpenColony }: Props) {
 
   useEffect(() => {
     void refresh(date);
-  }, [date]);
-
-  useEffect(() => {
     void getBaselinePercent().then(setBaselinePct);
-  }, []);
+  }, [date, active.id, revision]);
 
   const weighed = rows.filter((row) => row.today_weight != null).length;
 
@@ -62,9 +62,9 @@ export function Today({ onOpenColony }: Props) {
   );
 
   useEffect(() => {
-    if (!firstEmptyId || loading) return;
+    if (!canEdit || !firstEmptyId || loading) return;
     inputRefs.current[firstEmptyId]?.focus();
-  }, [firstEmptyId, loading, date]);
+  }, [canEdit, firstEmptyId, loading, date]);
 
   function focusNext(fromId: string) {
     const index = rows.findIndex((row) => row.id === fromId);
@@ -76,6 +76,7 @@ export function Today({ onOpenColony }: Props) {
   }
 
   async function commit(row: WeighRow, raw: string, moveNext: boolean) {
+    if (!canEdit) return;
     const trimmed = raw.trim();
     if (!trimmed) {
       if (row.today_weight != null) {
@@ -139,6 +140,7 @@ export function Today({ onOpenColony }: Props) {
             {rows.length === 0
               ? "No active mice yet."
               : `${weighed} of ${rows.length} weighed`}
+            {!canEdit && rows.length > 0 ? " · view only" : ""}
           </p>
         </div>
         <label className="flex flex-col gap-1 text-xs text-muted">
@@ -162,25 +164,28 @@ export function Today({ onOpenColony }: Props) {
         <div className="rounded-2xl border border-dashed border-line bg-panel px-8 py-14 text-center">
           <p className="font-serif text-2xl">The colony is empty</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-            Add an active mouse to start today’s weigh-in, or load a small sample colony to try the
-            curves.
+            {canEdit
+              ? "Add an active mouse to start today’s weigh-in, or load a small sample colony to try the curves."
+              : "This shared colony has no active mice to show."}
           </p>
-          <div className="mt-6 flex justify-center gap-3">
-            <button
-              type="button"
-              onClick={onOpenColony}
-              className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-bg"
-            >
-              Add a mouse
-            </button>
-            <button
-              type="button"
-              onClick={() => void loadSample()}
-              className="rounded-full border border-line px-4 py-2 text-sm text-ink"
-            >
-              Load sample colony
-            </button>
-          </div>
+          {canEdit && (
+            <div className="mt-6 flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={onOpenColony}
+                className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-bg"
+              >
+                Add a mouse
+              </button>
+              <button
+                type="button"
+                onClick={() => void loadSample()}
+                className="rounded-full border border-line px-4 py-2 text-sm text-ink"
+              >
+                Load sample colony
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <ul className="flex flex-col gap-3">
@@ -254,6 +259,7 @@ export function Today({ onOpenColony }: Props) {
                     className="weight-input w-28 rounded-xl border border-line bg-bg px-3 py-3 text-right font-serif text-2xl text-ink"
                     placeholder="g"
                     value={drafts[row.id] ?? ""}
+                    readOnly={!canEdit}
                     disabled={busyId === row.id}
                     onChange={(e) =>
                       setDrafts((prev) => ({ ...prev, [row.id]: e.target.value }))

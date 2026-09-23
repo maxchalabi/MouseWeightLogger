@@ -1,0 +1,22 @@
+project_id = "mouseweightlogger"
+
+[api]
+enabled = true
+
+[db]
+major_version = 15
+
+[functions.device-session]
+verify_jwt = false
+
+[functions.create-colony]
+verify_jwt = true
+
+[functions.create-invite]
+verify_jwt = true
+
+[functions.redeem-invite]
+verify_jwt = true
+
+[functions.set-member]
+verify_jwt = true

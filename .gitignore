@@ -35,6 +35,7 @@ AGENTS.md
 .env
 .env.*
 !.env.example
+supabase/.temp/
 *.pem
 *.key
 credentials.json

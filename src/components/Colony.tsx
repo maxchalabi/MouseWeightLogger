@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useActiveColony } from "../lib/colony-context";
 import { ageLabel } from "../lib/dates";
 import { exportColonyCsv } from "../lib/export";
 import {
@@ -23,6 +24,7 @@ export function Colony() {
   const [notice, setNotice] = useState<string | null>(null);
   const [baselinePct, setBaselinePct] = useState(80);
   const [cohortFilter, setCohortFilter] = useState("all");
+  const { active, revision, canEdit } = useActiveColony();
 
   async function refresh() {
     setMice(await listMice());
@@ -32,7 +34,7 @@ export function Colony() {
     void Promise.all([refresh(), getBaselinePercent().then(setBaselinePct)]).catch((err) =>
       setError(err instanceof Error ? err.message : String(err)),
     );
-  }, []);
+  }, [active.id, revision]);
 
   const cohorts = useMemo(() => listCohorts(mice), [mice]);
   const groups = useMemo(() => {
@@ -74,6 +76,7 @@ export function Colony() {
           <h1 className="font-serif text-4xl font-medium tracking-tight">Mice</h1>
           <p className="mt-2 text-sm text-muted">
             {mice.filter((m) => m.status === "active").length} active · {mice.length} total
+            {!canEdit ? " · view only" : ""}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -107,10 +110,12 @@ export function Colony() {
               max={100}
               step={1}
               value={baselinePct}
+              readOnly={!canEdit}
               onChange={(e) => setBaselinePct(Number(e.target.value) || 0)}
-              onBlur={() =>
-                void setBaselinePercent(baselinePct).catch((err) => setError(String(err)))
-              }
+              onBlur={() => {
+                if (!canEdit) return;
+                void setBaselinePercent(baselinePct).catch((err) => setError(String(err)));
+              }}
               className="w-12 bg-transparent text-center text-ink outline-none"
               aria-label="Minimum baseline percent"
             />
@@ -127,13 +132,15 @@ export function Colony() {
           >
             Export CSV
           </button>
-          <button
-            type="button"
-            onClick={() => setEditing("new")}
-            className="rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-bg"
-          >
-            Add mouse
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setEditing("new")}
+              className="rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-bg"
+            >
+              Add mouse
+            </button>
+          )}
         </div>
       </header>
 
@@ -143,28 +150,30 @@ export function Colony() {
       {groups.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line bg-panel px-8 py-14 text-center">
           <p className="font-serif text-2xl">No mice to show</p>
-          <div className="mt-6 flex justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => setEditing("new")}
-              className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-bg"
-            >
-              Add a mouse
-            </button>
-            {mice.length === 0 && (
+          {canEdit && (
+            <div className="mt-6 flex justify-center gap-3">
               <button
                 type="button"
-                onClick={() =>
-                  void seedDemoColony()
-                    .then(refresh)
-                    .catch((err) => setError(String(err)))
-                }
-                className="rounded-full border border-line px-4 py-2 text-sm"
+                onClick={() => setEditing("new")}
+                className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-bg"
               >
-                Load sample colony
+                Add a mouse
               </button>
-            )}
-          </div>
+              {mice.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void seedDemoColony()
+                      .then(refresh)
+                      .catch((err) => setError(String(err)))
+                  }
+                  className="rounded-full border border-line px-4 py-2 text-sm"
+                >
+                  Load sample colony
+                </button>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-8">
@@ -194,41 +203,54 @@ export function Colony() {
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-3">
-                          <button
-                            type="button"
-                            onClick={() => setEditing(mouse)}
-                            className="flex min-w-0 items-center gap-2 text-left"
-                          >
-                            <h3 className="truncate font-serif text-2xl">{mouse.name}</h3>
-                            {mouse.status === "inactive" && (
-                              <span className="shrink-0 rounded-full bg-muted/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted">
-                                Inactive
-                              </span>
-                            )}
-                          </button>
-                          <div className="flex shrink-0 items-center gap-2">
+                          {canEdit ? (
                             <button
                               type="button"
                               onClick={() => setEditing(mouse)}
-                              className="whitespace-nowrap text-xs text-muted hover:text-ink"
+                              className="flex min-w-0 items-center gap-2 text-left"
                             >
-                              Edit
+                              <h3 className="truncate font-serif text-2xl">{mouse.name}</h3>
+                              {mouse.status === "inactive" && (
+                                <span className="shrink-0 rounded-full bg-muted/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted">
+                                  Inactive
+                                </span>
+                              )}
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => void toggleStatus(mouse)}
-                              className="whitespace-nowrap text-xs text-muted hover:text-ink"
-                            >
-                              {mouse.status === "active" ? "Inactive" : "Reactivate"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void remove(mouse)}
-                              className="whitespace-nowrap text-xs text-bad hover:text-bad/80"
-                            >
-                              Delete
-                            </button>
-                          </div>
+                          ) : (
+                            <div className="flex min-w-0 items-center gap-2 text-left">
+                              <h3 className="truncate font-serif text-2xl">{mouse.name}</h3>
+                              {mouse.status === "inactive" && (
+                                <span className="shrink-0 rounded-full bg-muted/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted">
+                                  Inactive
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {canEdit && (
+                            <div className="flex shrink-0 items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setEditing(mouse)}
+                                className="whitespace-nowrap text-xs text-muted hover:text-ink"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void toggleStatus(mouse)}
+                                className="whitespace-nowrap text-xs text-muted hover:text-ink"
+                              >
+                                {mouse.status === "active" ? "Inactive" : "Reactivate"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void remove(mouse)}
+                                className="whitespace-nowrap text-xs text-bad hover:text-bad/80"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
                         </div>
                         <p className="mt-1 text-xs uppercase tracking-wider text-muted">
                           <span aria-label={sexLabel(mouse.sex)}>{sexGlyph(mouse.sex)}</span>
@@ -254,7 +276,7 @@ export function Colony() {
         </div>
       )}
 
-      {editing !== null && (
+      {canEdit && editing !== null && (
         <MouseForm
           mouse={editing === "new" ? null : editing}
           mice={mice}

@@ -1,8 +1,29 @@
 export type Sex = "M" | "F" | "U";
 export type MouseStatus = "active" | "inactive";
+export type ColonyRole = "owner" | "watcher";
+
+export type Colony = {
+  id: string;
+  name: string;
+  role: ColonyRole;
+  shared: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ColonyMember = {
+  colony_id: string;
+  user_id: string;
+  role: ColonyRole;
+  device_name: string;
+  revoked_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
 export type Mouse = {
   id: string;
+  colony_id: string;
   name: string;
   sex: Sex;
   birthdate: string | null;
@@ -19,6 +40,7 @@ export type Mouse = {
   status: MouseStatus;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 };
 
 export type MouseDraft = {
@@ -45,6 +67,47 @@ export type Weight = {
   weight_g: number;
   note: string | null;
   created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type RemoteMouse = {
+  id: string;
+  colony_id: string;
+  name: string;
+  sex: Sex;
+  birthdate: string | null;
+  strain: string | null;
+  genotype: string | null;
+  cage: string | null;
+  ear_mark: string | null;
+  experiment: string | null;
+  notes: string | null;
+  photo_path: string | null;
+  color: string | null;
+  baseline_weight_g: number | null;
+  restriction_start: string | null;
+  status: MouseStatus;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type RemoteWeight = {
+  id: string;
+  mouse_id: string;
+  date: string;
+  weight_g: number;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type RemoteSetting = {
+  colony_id: string;
+  key: string;
+  value: string;
   updated_at: string;
 };
 

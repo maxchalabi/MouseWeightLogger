@@ -4,7 +4,7 @@
   <img src="src-tauri/icons/128x128.png" width="96" alt="MouseWeightLogger icon" />
 </p>
 
-Local desktop app for daily mouse weigh-ins, colony metadata, and interactive weight curves. Runs on macOS, Windows, and Linux. Everything stays on this computer — SQLite, no account, no cloud.
+Local desktop app for daily mouse weigh-ins, colony metadata, and interactive weight curves. Runs on macOS, Windows, and Linux. The log lives in SQLite on this computer and works offline. Sharing a colony with another computer is optional.
 
 ## What it does
 
@@ -41,6 +41,22 @@ npm run tauri dev
 npm run tauri build
 ```
 
+## Sharing a colony
+
+Each install can keep several colonies. They do not share mice or weights. The first time you open the app, the log on this computer becomes a colony named **This computer** and stays private until you share it.
+
+Colonies sit in the header as pills.
+
+- Click a pill’s name to show that colony on Today, Mice, and Curves.
+- The pencil opens that colony: rename it, invite another computer, or remove it from this computer.
+- **+** creates a colony on this computer, or joins one with a code.
+
+An owner invites another computer as an owner (edit, delete, invite) or a watcher (view only, CSV export still works). The other computer types that code and nothing else. Codes expire after 7 days and work once.
+
+Removing a colony drops it from this computer. Other computers that still have it keep their copy. If this is the last computer, the shared colony is deleted too. The app says which of those will happen before you confirm.
+
+While you are offline, owner edits stay on this computer and upload the next time the shared colony can be reached. If two owners change the same mouse or the same weigh-in, the later edit wins.
+
 ## Data
 
 The database and imported photos live in the OS app-data directory, not in this repo:
@@ -53,7 +69,7 @@ The database and imported photos live in the OS app-data directory, not in this 
 
 ## Stack
 
-Tauri 2, React, TypeScript, Tailwind, SQLite (`tauri-plugin-sql`), Plotly.
+Tauri 2, React, TypeScript, Tailwind, SQLite (`tauri-plugin-sql`), Plotly. Optional colony sync uses Supabase.
 
 ## License
 
