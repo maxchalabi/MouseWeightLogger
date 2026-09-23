@@ -4,27 +4,28 @@
   <img src="src-tauri/icons/128x128.png" width="96" alt="MouseWeightLogger icon" />
 </p>
 
-Local desktop app for daily mouse weigh-ins, colony metadata, and interactive weight curves. Runs on macOS, Windows, and Linux. The log lives in SQLite on this computer and works offline. Sharing a colony with another computer is optional.
-
-## What it does
-
-- **Today** — weigh active mice for the day. Cards show ♀ / ♂, age, last weight, and % of a configurable baseline.
-- **Mice** — roster grouped by experiment / cohort. Add, edit, inactivate, or delete. Each mouse gets a unique plot color; photos and extra fields (strain, genotype, cage, ear mark, notes) are optional. One CSV export includes mice and daily weights.
-- **Curves** — interactive Plotly viewer. Pick mice or a whole cohort, drag to pan, scroll to zoom, home / double-click to reset. Save a PNG with the legend.
+Daily mouse weigh-ins, a colony roster, and weight curves. Local on your computer, offline-first. Share a colony with another machine when you want to.
 
 ## Screenshots
 
-**Today**
+**Today** — weigh-in cards with sex, age, last weight, and % of baseline.
 
 <img src="docs/screenshots/today.png" alt="Today weigh-in screen" width="960" />
 
-**Mice**
+**Mice** — roster by cohort, CSV export, photos and metadata.
 
 <img src="docs/screenshots/mice.png" alt="Mice roster grouped by cohort" width="960" />
 
-**Curves**
+**Curves** — pan, zoom, baseline line, PNG export.
 
 <img src="docs/screenshots/curves.png" alt="Weight curves viewer" width="960" />
+
+**Colonies** — header pills. **+** creates or joins; the pencil edits, shares, or removes.
+
+<p>
+  <img src="docs/screenshots/colony-add.png" alt="Add a colony or join with a code" width="470" />
+  <img src="docs/screenshots/colony-edit.png" alt="Edit colony, share, remove from this computer" width="470" />
+</p>
 
 ## Run
 
@@ -35,41 +36,53 @@ npm install
 npm run tauri dev
 ```
 
-## Build a desktop installer
+Build an installer: `npm run tauri build`
 
-```bash
-npm run tauri build
-```
+## How it works
 
-## Sharing a colony
+### On this computer
 
-Each install can keep several colonies. They do not share mice or weights. The first time you open the app, the log on this computer becomes a colony named **This computer** and stays private until you share it.
+Each install keeps its own SQLite database and photo folder under the OS app-data path (macOS: `~/Library/Application Support/com.maxchalabi.mouseweightlogger/`). Everything works offline. Weigh-ins, roster edits, and curve settings stay on disk until you share.
 
-Colonies sit in the header as pills.
+### Colonies
 
-- Click a pill’s name to show that colony on Today, Mice, and Curves.
-- The pencil opens that colony: rename it, invite another computer, or remove it from this computer.
-- **+** creates a colony on this computer, or joins one with a code.
+A **colony** is one log: its mice, weights, settings, and photos. The header pill selects which colony Today, Mice, and Curves show. You can keep several colonies on one machine; they do not mix data.
 
-An owner invites another computer as an owner (edit, delete, invite) or a watcher (view only, CSV export still works). The other computer types that code and nothing else. Codes expire after 7 days and work once.
+The first launch creates **This computer** as a private colony. **+** adds another local colony or joins an existing one with an invite code.
 
-Removing a colony drops it from this computer. Other computers that still have it keep their copy. If this is the last computer, the shared colony is deleted too. The app says which of those will happen before you confirm.
+### Sharing
 
-While you are offline, owner edits stay on this computer and upload the next time the shared colony can be reached. If two owners change the same mouse or the same weigh-in, the later edit wins.
+Sharing is built in. An owner opens the pencil drawer and taps **Invite an owner** or **Invite a watcher**. The app shows a one-time code; the other computer types it in **+ → Join colony**. No accounts, no setup screen.
 
-## Data
-
-The database and imported photos live in the OS app-data directory, not in this repo:
-
-| OS | Path |
+| Role | Can do |
 | --- | --- |
-| macOS | `~/Library/Application Support/com.maxchalabi.mouseweightlogger/` |
-| Windows | `%APPDATA%\com.maxchalabi.mouseweightlogger\` |
-| Linux | `~/.local/share/com.maxchalabi.mouseweightlogger/` |
+| Owner | Edit mice and weights, invite, rename the colony, remove devices |
+| Watcher | View Today, Mice, Curves; export CSV |
+
+Codes expire after 7 days and work once.
+
+**Remove from this computer** drops the colony from this machine only, unless you are the last computer that still has it—in that case the shared colony is deleted everywhere. The confirmation says which applies.
+
+While offline, owner edits queue locally and upload on the next sync. If two owners change the same mouse or the same day’s weight, the later edit wins.
+
+### Sync backend
+
+Shared colonies sync through a hosted [Supabase](https://supabase.com/) project baked into the app (`src/lib/sync-config.ts`). The anon key ships in the client; row-level security limits each device to colonies it belongs to. Edge Functions hold the service role and handle device identity, colony creation, invites, and membership.
+
+Rough flow:
+
+1. **Device session** — first share or join registers this computer as a device user (no email login in the UI).
+2. **Share** — uploads the local colony (mice, weights, settings, photos) and returns invite codes.
+3. **Join** — redeems a code and pulls the colony down into local SQLite.
+4. **Sync loop** — owners push dirty rows and pull remote changes; watchers pull only. Photos use object storage keyed by `{colony_id}/{mouse_id}`.
+
+Local schema lives in `src-tauri/migrations/` and `src/lib/db.ts`. Server schema and functions are under `supabase/`. Soft deletes (`deleted_at`) and `updated_at` timestamps drive merge; the active colony syncs on a timer, on window focus, and on realtime notifications.
+
+When the last member leaves, `set-member` deletes the colony row, related data, and stored photos on the server.
 
 ## Stack
 
-Tauri 2, React, TypeScript, Tailwind, SQLite (`tauri-plugin-sql`), Plotly. Optional colony sync uses Supabase.
+Tauri 2, React, TypeScript, Tailwind, SQLite (`tauri-plugin-sql`), Plotly, Supabase.
 
 ## License
 
