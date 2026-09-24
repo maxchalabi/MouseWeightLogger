@@ -16,8 +16,21 @@ function pctOfBaseline(weight: number | null, baseline: number | null): number |
   return (weight / baseline) * 100;
 }
 
+function gramsFromBaseline(weight: number | null, baseline: number | null): number | null {
+  if (weight == null || baseline == null || baseline <= 0) return null;
+  return Math.round((weight - baseline) * 10) / 10;
+}
+
+function toneClass(tone: ReturnType<typeof percentTone>): string {
+  if (tone === "ok") return "text-ok";
+  if (tone === "warn") return "text-warn";
+  if (tone === "bad") return "text-bad";
+  return "";
+}
+
 export function Today({ onOpenColony }: Props) {
   const [date, setDate] = useState(todayISO);
+  const followsToday = useRef(true);
   const [rows, setRows] = useState<WeighRow[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -53,6 +66,29 @@ export function Today({ onOpenColony }: Props) {
     void refresh(date);
     void getBaselinePercent().then(setBaselinePct);
   }, [date, active.id, revision]);
+
+  useEffect(() => {
+    function syncToday() {
+      if (!followsToday.current) return;
+      const next = todayISO();
+      setDate((current) => (current === next ? current : next));
+    }
+
+    const timer = window.setInterval(syncToday, 30_000);
+    window.addEventListener("focus", syncToday);
+    document.addEventListener("visibilitychange", syncToday);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", syncToday);
+      document.removeEventListener("visibilitychange", syncToday);
+    };
+  }, []);
+
+  function chooseDate(value: string) {
+    if (!value) return;
+    followsToday.current = value === todayISO();
+    setDate(value);
+  }
 
   const weighed = rows.filter((row) => row.today_weight != null).length;
 
@@ -148,7 +184,7 @@ export function Today({ onOpenColony }: Props) {
           <input
             type="date"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => chooseDate(e.target.value)}
             className="rounded-lg border border-line bg-panel-2 px-3 py-2 text-sm text-ink"
           />
         </label>
@@ -195,10 +231,7 @@ export function Today({ onOpenColony }: Props) {
               drafts[row.id]?.trim() && Number.isFinite(current) ? current : row.today_weight;
             const pct = pctOfBaseline(shown, row.baseline_weight_g);
             const tone = percentTone(pct, baselinePct);
-            const delta =
-              shown != null && row.prev_weight != null
-                ? Math.round((shown - row.prev_weight) * 10) / 10
-                : null;
+            const baselineDelta = gramsFromBaseline(shown, row.baseline_weight_g);
             return (
               <li
                 key={row.id}
@@ -220,32 +253,19 @@ export function Today({ onOpenColony }: Props) {
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-muted">
-                    {row.prev_weight != null ? (
-                      <>
-                        Last {formatShortDate(row.prev_date ?? date)}: {row.prev_weight.toFixed(1)} g
-                        {delta != null && (
-                          <span className="ml-2 text-ink/80">
-                            {delta > 0 ? "+" : ""}
-                            {delta.toFixed(1)} g
-                          </span>
+                    {row.prev_weight != null
+                      ? `Last ${formatShortDate(row.prev_date ?? date)}: ${row.prev_weight.toFixed(1)} g`
+                      : "No previous weight"}
+                    {(baselineDelta != null || pct != null) && (
+                      <span className={`ml-3 ${toneClass(tone)}`}>
+                        {pct != null && <>{pct.toFixed(0)}% of baseline</>}
+                        {pct != null && baselineDelta != null ? " · " : ""}
+                        {baselineDelta != null && (
+                          <>
+                            {baselineDelta > 0 ? "+" : ""}
+                            {baselineDelta.toFixed(1)} g
+                          </>
                         )}
-                      </>
-                    ) : (
-                      "No previous weight"
-                    )}
-                    {pct != null && (
-                      <span
-                        className={`ml-3 ${
-                          tone === "ok"
-                            ? "text-ok"
-                            : tone === "warn"
-                              ? "text-warn"
-                              : tone === "bad"
-                                ? "text-bad"
-                                : ""
-                        }`}
-                      >
-                        {pct.toFixed(0)}% of baseline
                       </span>
                     )}
                   </p>
