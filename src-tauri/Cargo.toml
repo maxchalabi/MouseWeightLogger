@@ -1,6 +1,6 @@
 [package]
 name = "mouseweightlogger"
-version = "0.1.0"
+version = "0.1.1"
 description = "Daily mouse weigh-in logger for experiments"
 authors = ["Max Chalabi Prat"]
 edition = "2021"

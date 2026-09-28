@@ -29,11 +29,11 @@ Daily mouse weigh-ins, a colony roster, and weight curves. Local on your compute
 
 ## Install
 
-Download [MouseWeightLogger 0.1.0](https://github.com/maxchalabi/MouseWeightLogger/releases/latest).
+Download [MouseWeightLogger 0.1.1](https://github.com/maxchalabi/MouseWeightLogger/releases/latest).
 
-**Mac (Apple silicon)** — `MouseWeightLogger_0.1.0_aarch64.dmg`. Double-click the disk image and drag **MouseWeightLogger** into Applications. macOS may block the first launch because the app is not notarized. Right-click the app, choose **Open**, then **Open** again.
+**Mac (Apple silicon)** — `MouseWeightLogger_0.1.1_aarch64.dmg`. Double-click the disk image and drag **MouseWeightLogger** into Applications. macOS may block the first launch because the app is not notarized. Right-click the app, choose **Open**, then **Open** again.
 
-**Windows** — `MouseWeightLogger_0.1.0_x64-setup.exe`. Double-click it and follow the installer. Windows SmartScreen may warn because the app is not signed. Choose **More info**, then **Run anyway**.
+**Windows** — `MouseWeightLogger_0.1.1_x64-setup.exe`. Double-click it and follow the installer. Windows SmartScreen may warn because the app is not signed. Choose **More info**, then **Run anyway**.
 
 ## Run from source
 

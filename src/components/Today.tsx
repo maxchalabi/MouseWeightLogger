@@ -38,19 +38,29 @@ export function Today({ onOpenColony }: Props) {
   const [loading, setLoading] = useState(true);
   const [baselinePct, setBaselinePct] = useState(80);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const rowsRef = useRef<WeighRow[]>([]);
+  const dirtyIds = useRef<Set<string>>(new Set());
   const { active, revision, canEdit } = useActiveColony();
+
+  function savedDraft(row: WeighRow): string {
+    return row.today_weight == null ? "" : String(row.today_weight);
+  }
 
   async function refresh(nextDate = date) {
     setLoading(true);
     try {
       const next = await listWeighRows(nextDate);
+      rowsRef.current = next;
       setRows(next);
       setDrafts((prev) =>
         Object.fromEntries(
           next.map((row) => {
             const field = inputRefs.current[row.id];
-            if (field && document.activeElement === field) return [row.id, prev[row.id] ?? ""];
-            return [row.id, row.today_weight == null ? "" : String(row.today_weight)];
+            const editing =
+              field != null && document.activeElement === field && dirtyIds.current.has(row.id);
+            if (editing) return [row.id, prev[row.id] ?? ""];
+            dirtyIds.current.delete(row.id);
+            return [row.id, savedDraft(row)];
           }),
         ),
       );
@@ -93,38 +103,61 @@ export function Today({ onOpenColony }: Props) {
   const weighed = rows.filter((row) => row.today_weight != null).length;
 
   const firstEmptyId = useMemo(
-    () => rows.find((row) => row.today_weight == null)?.id ?? rows[0]?.id ?? null,
+    () => rows.find((row) => row.today_weight == null)?.id ?? null,
     [rows],
   );
 
   useEffect(() => {
     if (!canEdit || !firstEmptyId || loading) return;
-    inputRefs.current[firstEmptyId]?.focus();
+    const activeId = Object.entries(inputRefs.current).find(
+      ([, el]) => el === document.activeElement,
+    )?.[0];
+    if (activeId && dirtyIds.current.has(activeId)) return;
+    const target = inputRefs.current[firstEmptyId];
+    if (!target || document.activeElement === target) return;
+    target.focus();
   }, [canEdit, firstEmptyId, loading, date]);
 
   function focusNext(fromId: string) {
-    const index = rows.findIndex((row) => row.id === fromId);
+    const list = rowsRef.current;
+    const index = list.findIndex((row) => row.id === fromId);
     const next =
-      rows.slice(index + 1).find((row) => row.today_weight == null) ??
-      rows[index + 1] ??
-      rows[0];
+      list.slice(index + 1).find((row) => row.today_weight == null) ??
+      list[index + 1] ??
+      list[0];
     if (next) inputRefs.current[next.id]?.focus();
+  }
+
+  function latestRow(id: string): WeighRow | undefined {
+    return rowsRef.current.find((row) => row.id === id);
   }
 
   async function commit(row: WeighRow, raw: string, moveNext: boolean) {
     if (!canEdit) return;
     const trimmed = raw.trim();
     if (!trimmed) {
-      if (row.today_weight != null) {
+      const saved = latestRow(row.id)?.today_weight ?? null;
+      const userCleared = dirtyIds.current.has(row.id);
+      if (!userCleared) {
+        if (saved != null) {
+          setDrafts((prev) => ({ ...prev, [row.id]: String(saved) }));
+        }
+        if (moveNext) focusNext(row.id);
+        return;
+      }
+      if (saved != null) {
         setBusyId(row.id);
         try {
           await deleteWeight(row.id, date);
+          dirtyIds.current.delete(row.id);
           await refresh();
         } catch (err) {
           setError(err instanceof Error ? err.message : String(err));
         } finally {
           setBusyId(null);
         }
+      } else {
+        dirtyIds.current.delete(row.id);
       }
       if (moveNext) focusNext(row.id);
       return;
@@ -136,7 +169,8 @@ export function Today({ onOpenColony }: Props) {
       return;
     }
 
-    if (row.today_weight === value) {
+    if ((latestRow(row.id)?.today_weight ?? null) === value) {
+      dirtyIds.current.delete(row.id);
       if (moveNext) focusNext(row.id);
       return;
     }
@@ -144,6 +178,7 @@ export function Today({ onOpenColony }: Props) {
     setBusyId(row.id);
     try {
       await upsertWeight(row.id, date, Math.round(value * 10) / 10);
+      dirtyIds.current.delete(row.id);
       await refresh();
       if (moveNext) {
         requestAnimationFrame(() => focusNext(row.id));
@@ -281,9 +316,10 @@ export function Today({ onOpenColony }: Props) {
                     value={drafts[row.id] ?? ""}
                     readOnly={!canEdit}
                     disabled={busyId === row.id}
-                    onChange={(e) =>
-                      setDrafts((prev) => ({ ...prev, [row.id]: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      dirtyIds.current.add(row.id);
+                      setDrafts((prev) => ({ ...prev, [row.id]: e.target.value }));
+                    }}
                     onBlur={(e) => void commit(row, e.target.value, false)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
